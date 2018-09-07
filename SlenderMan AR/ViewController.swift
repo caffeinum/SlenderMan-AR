@@ -68,12 +68,26 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         if !hitTestResults.isEmpty {
             
-            let hitTestResult = hitTestResults.first!
+            guard let hitResult = hitTestResults.first else {
+                return
+            }
             
-            let anchor = ARAnchor(name: "box", transform: hitTestResult.worldTransform)
-            
-            self.sceneView.session.add(anchor: anchor)
+//            let anchor = ARAnchor(name: "box", transform: hitTestResult.worldTransform)
+//
+//            self.sceneView.session.add(anchor: anchor)
+            addSlenderMan(hitResult: hitResult)
         }
+    }
+    
+    private func addSlenderMan(hitResult: ARHitTestResult) {
+        
+        let slenderScene = SCNScene(named: "art.scnassets/SlenderMan_Model.scn")
+        let slenderNode = slenderScene?.rootNode.childNode(withName: "Slenderman", recursively: true)
+        
+        slenderNode?.position = SCNVector3(hitResult.worldTransform.columns.3.x, hitResult.worldTransform.columns.3.y, hitResult.worldTransform.columns.3.z)
+        
+        self.sceneView.scene.rootNode.addChildNode(slenderNode!)
+        
     }
     
     override func viewWillAppear(_ animated: Bool) {
