@@ -14,6 +14,21 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
     
+    private lazy var saveListMapButton: UIButton = {
+        
+        let button = UIButton(type: .custom)
+        button.setTitle("Save", for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.tintColor = UIColor.white
+        button.backgroundColor = UIColor(red: 53/255, green: 73/255, blue: 94/255, alpha: 1)
+        button.addTarget(self, action: #selector(saveListMap), for: .touchUpInside)
+        return button
+    }()
+    
+    @objc func saveListMap() {
+        
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -29,7 +44,22 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Set the scene to the view
         sceneView.scene = scene
         
+        setupUI()
+        
         registerGestureRecognizers()
+    }
+    
+    private func setupUI() {
+        
+        self.view.addSubview(self.saveListMapButton)
+        
+        // add constraints to save list map button
+        self.saveListMapButton.centerXAnchor.constraint(equalTo: self.sceneView.centerXAnchor).isActive = true
+        self.saveListMapButton.bottomAnchor.constraint(equalTo: self.sceneView.bottomAnchor, constant: -20).isActive = true
+        self.saveListMapButton.widthAnchor.constraint(equalToConstant: 100).isActive = true
+        
+        self.saveListMapButton.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        
     }
     
     private func registerGestureRecognizers() {
