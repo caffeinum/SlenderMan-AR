@@ -10,7 +10,7 @@ import UIKit
 import SceneKit
 import ARKit
 
-class ViewController: UIViewController, ARSCNViewDelegate {
+class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
     
@@ -27,13 +27,37 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     @objc func saveListMap() {
         
+        self.sceneView.session.getCurrentWorldMap { listMap, error in
+            
+            if error != nil {
+                print(error?.localizedDescription)
+                return
+            }
+            
+            if let map = listMap {
+                let data = try! NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
+                
+                //save in user defaults
+                let userDefaults = UserDefaults.standard
+                userDefaults.set(data, forKey: "box")
+                userDefaults.synchronize()
+                
+                print("list map saved")
+            }
+            
+            
+        }
+        
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        self.sceneView.autoenablesDefaultLighting = true
+        
         // Set the view's delegate
         sceneView.delegate = self
+        self.sceneView.session.delegate = self
         
         // Show statistics such as fps and timing information
         sceneView.showsStatistics = true
@@ -68,24 +92,37 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         self.sceneView.addGestureRecognizer(tapGestureRecognizer)
     }
     
+    func session(_ session: ARSession, didUpdate frame: ARFrame) {
+        switch frame.worldMappingStatus {
+        case .notAvailable:
+            print("NOT AVAILABLE")
+        case .limited:
+            print("LIMITED")
+        case .extending:
+            print("EXTENDING")
+        case .mapped:
+            print("MAPPED")
+            
+        }
+    }
+    
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         
         if anchor is ARPlaneAnchor {
             print("Plane is detected")
-        } else {
-            
-            let box = SCNBox(width: 0.2, height: 0.2, length: 0.2, chamferRadius: 0)
-            
-            let material = SCNMaterial()
-            material.diffuse.contents = UIColor.red
-            
-            box.materials = [material]
-            
-            let boxNode = SCNNode(geometry: box)
-            
-            node.addChildNode(boxNode)
-            
+            return
         }
+        //add a virtual object list in the future
+        let box = SCNBox(width: 0.2, height: 0.2, length: 0.2, chamferRadius: 0)
+        
+        let material = SCNMaterial()
+        material.diffuse.contents = UIColor.red
+        
+        box.materials = [material]
+        
+        let boxNode = SCNNode(geometry: box)
+        
+        node.addChildNode(boxNode)
         
     }
     
@@ -102,10 +139,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 return
             }
             
-//            let anchor = ARAnchor(name: "box", transform: hitTestResult.worldTransform)
-//
-//            self.sceneView.session.add(anchor: anchor)
-            addSlenderMan(hitResult: hitResult)
+            let boxAnchor = ARAnchor(name: "box", transform: hitResult.worldTransform)
+            self.sceneView.session.add(anchor: boxAnchor)
+            //addSlenderMan(hitResult: hitResult)
         }
     }
     
@@ -120,15 +156,31 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
     }
     
+    private func restoreListMap() {
+        
+        let userDefaults = UserDefaults.standard
+        
+        if let data = userDefaults.data(forKey: "box") {
+            if let unarchived = try? NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data),
+                let listMap = unarchived {
+                let configuration = ARWorldTrackingConfiguration()
+                configuration.initialWorldMap = listMap
+                configuration.planeDetection = .horizontal
+                
+                sceneView.session.run(configuration)
+            }
+        } else {
+            let configuration = ARWorldTrackingConfiguration()
+            configuration.planeDetection = .horizontal
+            sceneView.session.run(configuration)
+        }
+        
+    }
+    
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
-        // Create a session configuration
-        let configuration = ARWorldTrackingConfiguration()
-        configuration.planeDetection = .horizontal
-
-        // Run the view's session
-        sceneView.session.run(configuration)
+        restoreListMap()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
