@@ -14,6 +14,26 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
     
+    private lazy var saveStatusLabel: UILabel = {
+        
+        let label = UILabel()
+        label.textAlignment = .center
+        label.textColor = UIColor.white
+        label.font = UIFont.boldSystemFont(ofSize: 16.0)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    private lazy var worldMapStatusLabel :UILabel = {
+        
+        let label = UILabel()
+        label.textAlignment = .center
+        label.textColor = UIColor.white
+        label.font = UIFont.boldSystemFont(ofSize: 16.0)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     private lazy var saveListMapButton: UIButton = {
         
         let button = UIButton(type: .custom)
@@ -42,7 +62,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 userDefaults.set(data, forKey: "box")
                 userDefaults.synchronize()
                 
-                print("list map saved")
+                self.saveStatusLabel.text = "SAVED"
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                  self.saveStatusLabel.text = ""
+                }
             }
             
             
@@ -73,9 +97,23 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         registerGestureRecognizers()
     }
     
+    //MARK: - UI
+    
     private func setupUI() {
         
+        self.view.addSubview(self.saveStatusLabel)
+        self.view.addSubview(self.worldMapStatusLabel)
         self.view.addSubview(self.saveListMapButton)
+        
+        // add constraints to save status list map label
+        self.saveStatusLabel.topAnchor.constraint(equalTo: self.sceneView.topAnchor, constant: 20).isActive = true
+        self.saveStatusLabel.centerXAnchor.constraint(equalTo: self.sceneView.centerXAnchor).isActive = true
+        self.saveStatusLabel.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        
+        //add constraints to label
+        self.worldMapStatusLabel.topAnchor.constraint(equalTo: self.sceneView.topAnchor, constant: 20).isActive = true
+        self.worldMapStatusLabel.rightAnchor.constraint(equalTo: self.sceneView.rightAnchor, constant: -20).isActive = true
+        self.worldMapStatusLabel.heightAnchor.constraint(equalToConstant: 44).isActive = true
         
         // add constraints to save list map button
         self.saveListMapButton.centerXAnchor.constraint(equalTo: self.sceneView.centerXAnchor).isActive = true
@@ -95,14 +133,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         switch frame.worldMappingStatus {
         case .notAvailable:
-            print("NOT AVAILABLE")
+            self.worldMapStatusLabel.text = "NOT AVAILABLE"
         case .limited:
-            print("LIMITED")
+            self.worldMapStatusLabel.text = "LIMITED"
         case .extending:
-            print("EXTENDING")
+            self.worldMapStatusLabel.text = "EXTENDING"
         case .mapped:
-            print("MAPPED")
-            
+            self.worldMapStatusLabel.text = "MAPPED"
         }
     }
     
