@@ -81,6 +81,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Set the view's delegate
         sceneView.delegate = self
+        
+        self.sceneView.autoenablesDefaultLighting = true
+        
+        self.sceneView.debugOptions = [ARSCNDebugOptions.showFeaturePoints,ARSCNDebugOptions.showWorldOrigin]
+        
         self.sceneView.session.delegate = self
         
         // Show statistics such as fps and timing information
@@ -142,6 +147,42 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             self.worldMapStatusLabel.text = "MAPPED"
         }
     }
+    //workplace
+    func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
+        
+        guard let plane = anchor as? ARPlaneAnchor,
+            let device = renderer.device,
+            let geometry = ARSCNPlaneGeometry(device: device)
+            else { return nil}
+        
+        geometry.update(from: plane.geometry)
+        
+        let maskMaterial = SCNMaterial()
+        maskMaterial.colorBufferWriteMask = []
+        geometry.materials = [maskMaterial]
+        
+        let node = SCNNode(geometry: geometry)
+        node.renderingOrder = -1
+    
+        return node
+    }
+    //workplace
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        
+        guard let plane = anchor as? ARPlaneAnchor,
+            let geometry = node.geometry as? ARSCNPlaneGeometry
+            else { return }
+        geometry.update(from: plane.geometry)
+        node.boundingBox = planeBoundary(extent: plane.extent)
+        
+    }
+    //workplace
+    private func planeBoundary(extent: float3) -> (min: SCNVector3, max: SCNVector3) {
+        
+        let radius = extent * 0.5
+        return (min: SCNVector3(-radius), max: SCNVector3(radius))
+        
+    }
     
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         
@@ -150,16 +191,17 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         //add a virtual object list in the future
-        let box = SCNBox(width: 0.2, height: 0.2, length: 0.2, chamferRadius: 0)
+//        let box = SCNBox(width: 0.2, height: 0.2, length: 0.2, chamferRadius: 0)
+//
+//        let material = SCNMaterial()
+//        material.diffuse.contents = UIColor.red
+//
+//        box.materials = [material]
+//
+//        let boxNode = SCNNode(geometry: box)
+//
+//        node.addChildNode(boxNode)
         
-        let material = SCNMaterial()
-        material.diffuse.contents = UIColor.red
-        
-        box.materials = [material]
-        
-        let boxNode = SCNNode(geometry: box)
-        
-        node.addChildNode(boxNode)
         
     }
     
@@ -178,11 +220,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             
             let boxAnchor = ARAnchor(name: "box", transform: hitResult.worldTransform)
             self.sceneView.session.add(anchor: boxAnchor)
-            //addSlenderMan(hitResult: hitResult)
+            
         }
     }
     
-    private func addSlenderMan(hitResult: ARHitTestResult) {
+    private func addSlenderManObject(hitResult: ARHitTestResult) {
         
         let slenderScene = SCNScene(named: "art.scnassets/SlenderMan_Model.scn")
         let slenderNode = slenderScene?.rootNode.childNode(withName: "Slenderman", recursively: true)
@@ -191,6 +233,23 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         self.sceneView.scene.rootNode.addChildNode(slenderNode!)
         
+    }
+    
+    private func addTapeObject(hitResult: ARHitTestResult) {
+        
+        let tapeScene = SCNScene(named: "art.scnassets/tape/Tape.scn")
+        let tapeNode = tapeScene?.rootNode.childNode(withName: "Tape", recursively: true)
+        
+        tapeNode?.position = SCNVector3(hitResult.worldTransform.columns.3.x, hitResult.worldTransform.columns.3.y, hitResult.worldTransform.columns.3.z)
+        
+        self.sceneView.scene.rootNode.addChildNode(tapeNode!)
+        
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        restoreListMap()
     }
     
     private func restoreListMap() {
@@ -207,17 +266,20 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 sceneView.session.run(configuration)
             }
         } else {
-            let configuration = ARWorldTrackingConfiguration()
-            configuration.planeDetection = .horizontal
-            sceneView.session.run(configuration)
+//            let configuration = ARWorldTrackingConfiguration()
+//            configuration.planeDetection = .horizontal
+//            sceneView.session.run(configuration)
+            startTracking()
         }
         
     }
-    
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
+    //workplace
+    private func startTracking() {
         
-        restoreListMap()
+        sceneView.debugOptions = [ARSCNDebugOptions.showFeaturePoints]
+        let configuration = ARWorldTrackingConfiguration()
+        configuration.planeDetection = [.vertical, .horizontal]
+        sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
     }
     
     override func viewWillDisappear(_ animated: Bool) {
