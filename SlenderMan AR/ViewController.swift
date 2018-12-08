@@ -10,8 +10,14 @@ import UIKit
 import SceneKit
 import ARKit
 
-class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
-
+class ViewController: UIViewController {
+    
+    var isTorchOn = false {
+        didSet {
+            turnTorch(enabled: isTorchOn)
+        }
+    }
+    
     @IBOutlet var sceneView: ARSCNView!
     
     private lazy var saveStatusLabel: UILabel = {
@@ -135,6 +141,17 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         self.sceneView.addGestureRecognizer(tapGestureRecognizer)
     }
     
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        
+        // Pause the view's session
+        sceneView.session.pause()
+    }
+}
+
+extension ViewController: ARSCNViewDelegate, ARSessionDelegate {
+    
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         switch frame.worldMappingStatus {
         case .notAvailable:
@@ -147,6 +164,26 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             self.worldMapStatusLabel.text = "MAPPED"
         }
     }
+    
+    
+    func renderer(_ renderer: SCNSceneRenderer, didRenderScene scene: SCNScene, atTime time: TimeInterval) {
+        if self.sceneView.session.currentFrame != nil {
+            if !isTorchOn {
+                isTorchOn = true
+            }
+        }
+    }
+    
+    func sessionWasInterrupted(_ session: ARSession) {
+        isTorchOn = false
+        // Probably you would want to turn the torch off here.
+    }
+    
+    func sessionInterruptionEnded(_ session: ARSession) {
+        isTorchOn = true
+        // Probably you would want to turn the torch on again here.
+    }
+
     //workplace
     func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
         
@@ -186,22 +223,26 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         
-        if anchor is ARPlaneAnchor {
-            print("Plane is detected")
+        guard anchor is ARPlaneAnchor else {
+            print("Plane is not detected")
             return
         }
-        //add a virtual object list in the future
-//        let box = SCNBox(width: 0.2, height: 0.2, length: 0.2, chamferRadius: 0)
-//
-//        let material = SCNMaterial()
-//        material.diffuse.contents = UIColor.red
-//
-//        box.materials = [material]
-//
-//        let boxNode = SCNNode(geometry: box)
-//
-//        node.addChildNode(boxNode)
         
+        print("Plane is detected")
+        
+        // add a virtual object list in the future
+
+        let box = SCNBox(width: 0.2, height: 0.2, length: 0.2, chamferRadius: 0)
+
+        let material = SCNMaterial()
+        material.diffuse.contents = UIColor.red
+
+        box.materials = [material]
+
+        let boxNode = SCNNode(geometry: box)
+
+        node.addChildNode(boxNode)
+    
         
     }
     
@@ -221,6 +262,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             let boxAnchor = ARAnchor(name: "box", transform: hitResult.worldTransform)
             self.sceneView.session.add(anchor: boxAnchor)
             
+            addTapeObject(hitResult: hitResult)
+            addSlenderManObject(hitResult: hitResult)
         }
     }
     
@@ -281,11 +324,27 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         configuration.planeDetection = [.vertical, .horizontal]
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
     }
-    
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
+}
+
+extension ViewController {
+    func turnTorch(enabled: Bool = false) {
+        guard let device = AVCaptureDevice.default(for: AVMediaType.video) else { return }
+        guard device.hasTorch else { return }
         
-        // Pause the view's session
-        sceneView.session.pause()
+        do {
+            try device.lockForConfiguration()
+            
+            device.torchMode = enabled ? .on : .off
+            
+            do {
+                try device.setTorchModeOn(level: 1.0)
+            } catch {
+                print(error)
+            }
+            
+            device.unlockForConfiguration()
+        } catch {
+            print(error)
+        }
     }
 }
